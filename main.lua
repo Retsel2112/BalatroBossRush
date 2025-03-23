@@ -21,6 +21,15 @@ function hook_reset_blinds ()
 end
 
 function hook_ante_change (mod)
+    -- when the ante changes from a voucher, we need to reset the blind count
+    -- when the ante changes from beating the 3rd blind, this fires before the bcount increment
+    if mod > 0 then
+        -- will hit an increment call when leaving the shop it's about to enter
+        bcount = -1
+    else
+        -- negative ante changes come from vouchers which do not exit through the gift shop
+        bcount = 0
+    end
     bcount = 0
     G.redo_blinds = true
     sendInfoMessage(string.format("%s: %d", "Will redo blinds next call. Ante changing by", mod), "BossRushLog")
@@ -55,9 +64,9 @@ function hook_end_round ()
     backup_end_round()
 end
 
-function hook_shop (state_change, override)
-    --sendInfoMessage("State Change:", "BossRushLog")
-    --sendInfoMessage(state_change, "BossRushLog")
+function hook_color_transitions (state_change, override)
+    sendInfoMessage("State Change:", "BossRushLog")
+    sendInfoMessage(state_change, "BossRushLog")
     if state_change == G.STATES.GAME_OVER then
         -- Set the globals back to the default state
         bcount = 0
@@ -99,7 +108,7 @@ Blind.get_type = hook_blind_get_type
 
 
 sendInfoMessage("Figuring out when to add to blind count...", "BossRushLog")
-ease_background_colour_blind = hook_shop
+ease_background_colour_blind = hook_color_transitions
 
 G.FUNCS.skip_blind = hook_skip_blind
 
