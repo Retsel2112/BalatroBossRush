@@ -2,6 +2,7 @@ local backup_reset_blinds = reset_blinds
 local backup_shop = ease_background_colour_blind
 local backup_ease_ante = ease_ante
 local backup_end_round = end_round
+local backup_gfunc_skip_blind = G.FUNCS.skip_blind
 local bcount = 0
 G.redo_blinds = true
 local in_shop = false
@@ -22,14 +23,12 @@ end
 function hook_ante_change (mod)
     bcount = 0
     G.redo_blinds = true
-    sendInfoMessage("Ante changing by:", "BossRushLog")
-    sendInfoMessage(mod, "BossRushLog")
+    sendInfoMessage(string.format("%s: %d", "Will redo blinds next call. Ante changing by", mod), "BossRushLog")
     backup_ease_ante(mod)
 end
 
 function hook_blind_get_type ()
-    sendInfoMessage("Get Blind Type:", "BossRushLog")
-    sendInfoMessage(bcount, "BossRushLog")
+    sendInfoMessage(string.format("Get Blind Type: %d", bcount), "BossRushLog")
     if bcount == 0 then
         sendInfoMessage("small", "BossRushLog")
         return 'Small'
@@ -56,32 +55,39 @@ function hook_end_round ()
     backup_end_round()
 end
 
-function hook_shop (state_change)
+function hook_shop (state_change, override)
     --sendInfoMessage("State Change:", "BossRushLog")
     --sendInfoMessage(state_change, "BossRushLog")
+    if state_change == G.STATES.GAME_OVER then
+        -- Set the globals back to the default state
+        bcount = 0
+        G.redo_blinds = true
+    end
     if state_change == G.STATES.SHOP then
         if not in_shop then
-            sendInfoMessage("Incrementing Blind Count", "BossRushLog")
+            sendInfoMessage("Incrementing Blind Count (CAUSE: BGSTATE SHOP)", "BossRushLog")
             sendInfoMessage(bcount, "BossRushLog")
             bcount = bcount + 1
             sendInfoMessage(bcount, "BossRushLog")
         end
-        sendInfoMessage("A", "BossRushLog")
+        sendInfoMessage("STATE: IN SHOP", "BossRushLog")
         in_shop = true
-        sendInfoMessage("B", "BossRushLog")
     end
-    sendInfoMessage("C", "BossRushLog")
     if state_change == G.STATES.BLIND_SELECT then
-        sendInfoMessage("D", "BossRushLog")
+        sendInfoMessage("STATE: SELECTING BLIND (removing in-shop status)", "BossRushLog")
         in_shop = false
-        sendInfoMessage("E", "BossRushLog")
     end
-    sendInfoMessage("F", "BossRushLog")
-    backup_shop(state_change)
+    sendInfoMessage("Calling backup background color easing function", "BossRushLog")
+    -- hm...
+    backup_shop(state_change, override)
 end
 
-function hook_skip_blind ()
-
+function hook_skip_blind (e)
+    sendInfoMessage("Incrementing Blind Count (CAUSE: SKIP_BLIND)", "BossRushLog")
+            sendInfoMessage(bcount, "BossRushLog")
+            bcount = bcount + 1
+            sendInfoMessage(bcount, "BossRushLog")
+    backup_gfunc_skip_blind(e)
 end
 
 sendInfoMessage("Making everything bosses...", "BossRushLog")
@@ -95,7 +101,10 @@ Blind.get_type = hook_blind_get_type
 sendInfoMessage("Figuring out when to add to blind count...", "BossRushLog")
 ease_background_colour_blind = hook_shop
 
+G.FUNCS.skip_blind = hook_skip_blind
+
 sendInfoMessage("Messing with end_round behavior...", "BossRushLog")
-end_round = hook_end_round
+-- This causes a crash
+--end_round = hook_end_round
 
 sendInfoMessage("Boss Rush loaded", "BossRushLog")
